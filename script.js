@@ -300,6 +300,11 @@ async function openGallery() {
   }
 
   galleryTransitioning = false;
+
+  if (pointers.size === 2) {
+    preparePinchGesture();
+  }
+
   galleryClose.focus({ preventScroll: true });
 }
 
@@ -363,6 +368,23 @@ function pointerCenter() {
   };
 }
 
+function preparePinchGesture() {
+  if (pointers.size !== 2) return;
+
+  gestureHadPinch = true;
+  startDistance = Math.max(pointerDistance(), 1);
+  startScale = scale;
+  startTranslateX = translateX;
+  startTranslateY = translateY;
+
+  const center = pointerCenter();
+  const rect = stage.getBoundingClientRect();
+
+  pinchStartCenterX = center.x - rect.left - rect.width / 2;
+  pinchStartCenterY = center.y - rect.top - rect.height / 2;
+  stage.classList.remove("dragging");
+}
+
 stage.addEventListener("pointerdown", (event) => {
   if (event.target.closest("button, a, input, select, textarea")) {
     return;
@@ -400,17 +422,12 @@ stage.addEventListener("pointerdown", (event) => {
 
   if (pointers.size === 2) {
     gestureHadPinch = true;
-    startDistance = Math.max(pointerDistance(), 1);
-    startScale = scale;
-    startTranslateX = translateX;
-    startTranslateY = translateY;
 
-    const center = pointerCenter();
-    const rect = stage.getBoundingClientRect();
-
-    pinchStartCenterX = center.x - rect.left - rect.width / 2;
-    pinchStartCenterY = center.y - rect.top - rect.height / 2;
-    stage.classList.remove("dragging");
+    if (!galleryExpanded) {
+      openGallery();
+    } else if (!galleryTransitioning) {
+      preparePinchGesture();
+    }
   }
 });
 
@@ -434,6 +451,8 @@ stage.addEventListener("pointermove", (event) => {
   if (galleryExpanded || scale > MIN_SCALE) {
     event.preventDefault();
   }
+
+  if (galleryTransitioning) return;
 
   if (pointers.size === 2) {
     const center = pointerCenter();
