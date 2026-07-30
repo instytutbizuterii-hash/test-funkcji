@@ -186,6 +186,7 @@ button {
 }
 
 .zoom-stage {
+  backface-visibility: hidden;
   box-sizing: border-box;
   cursor: zoom-in;
   height: min(64vh, 580px);
@@ -195,6 +196,7 @@ button {
   overscroll-behavior: contain;
   position: relative;
   touch-action: pan-y;
+  transform-origin: top left;
   user-select: none;
 }
 

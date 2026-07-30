@@ -36,6 +36,8 @@ let activeVersion = "a";
 let fullResolutionLoaded = true;
 let fullResolutionLoading = false;
 let fullResolutionPromise = null;
+let galleryOriginRect = null;
+let galleryTransitioning = false;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -219,7 +221,7 @@ function selectVersion(version) {
   if (version === activeVersion) return;
 
   if (galleryExpanded) {
-    closeGallery();
+    closeGallery(false);
   } else {
     resetZoom();
   }
@@ -245,23 +247,105 @@ function selectVersion(version) {
   });
 }
 
-function openGallery() {
-  if (galleryExpanded) return;
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
+function galleryTransform(fromRect, toRect) {
+  return {
+    x: fromRect.left - toRect.left,
+    y: fromRect.top - toRect.top,
+    scaleX: fromRect.width / toRect.width,
+    scaleY: fromRect.height / toRect.height,
+  };
+}
+
+async function openGallery() {
+  if (galleryExpanded || galleryTransitioning) return;
+
+  galleryTransitioning = true;
+  galleryOriginRect = stage.getBoundingClientRect();
   galleryExpanded = true;
   stage.classList.add("expanded");
   document.body.classList.add("gallery-open");
-  galleryClose.focus({ preventScroll: true });
   render();
   loadFullResolution();
+
+  const expandedRect = stage.getBoundingClientRect();
+  const start = galleryTransform(galleryOriginRect, expandedRect);
+
+  if (!prefersReducedMotion() && stage.animate) {
+    const animation = stage.animate(
+      [
+        {
+          borderRadius: "12px",
+          transform: `translate(${start.x}px, ${start.y}px) scale(${start.scaleX}, ${start.scaleY})`,
+        },
+        {
+          borderRadius: "0",
+          transform: "translate(0, 0) scale(1, 1)",
+        },
+      ],
+      {
+        duration: 380,
+        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
+    );
+
+    try {
+      await animation.finished;
+    } catch {
+      // Animacja mogła zostać przerwana przez zmianę widoku.
+    }
+  }
+
+  galleryTransitioning = false;
+  galleryClose.focus({ preventScroll: true });
 }
 
-function closeGallery() {
+async function closeGallery(animate = true) {
+  if (!galleryExpanded || galleryTransitioning) return;
+
+  galleryTransitioning = true;
   galleryExpanded = false;
   pointers.clear();
-  stage.classList.remove("expanded", "dragging", "gesture-active");
-  document.body.classList.remove("gallery-open");
+  stage.classList.remove("dragging", "gesture-active");
   resetZoom();
+
+  const expandedRect = stage.getBoundingClientRect();
+  const targetRect = galleryOriginRect || expandedRect;
+  const end = galleryTransform(targetRect, expandedRect);
+
+  if (animate && !prefersReducedMotion() && stage.animate) {
+    const animation = stage.animate(
+      [
+        {
+          borderRadius: "0",
+          transform: "translate(0, 0) scale(1, 1)",
+        },
+        {
+          borderRadius: "12px",
+          transform: `translate(${end.x}px, ${end.y}px) scale(${end.scaleX}, ${end.scaleY})`,
+        },
+      ],
+      {
+        duration: 300,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+      },
+    );
+
+    try {
+      await animation.finished;
+    } catch {
+      // Animacja mogła zostać przerwana przez zmianę widoku.
+    }
+  }
+
+  stage.classList.remove("expanded");
+  document.body.classList.remove("gallery-open");
+  galleryTransitioning = false;
+  galleryOriginRect = null;
+  render();
   toggle.focus({ preventScroll: true });
 }
 
