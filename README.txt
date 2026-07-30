@@ -18,3 +18,11 @@ Pliki:
 
 Zdjęcia produktów są pobierane z internetu, dlatego do pełnego testu
 potrzebne jest połączenie z siecią.
+
+KARUZELA:
+
+- uruchamia się automatycznie,
+- zatrzymuje się na każdym produkcie przez około 3 sekundy,
+- po dotknięciu lub ręcznym przesunięciu robi 5 sekund przerwy,
+- następnie sama wznawia przewijanie,
+- przycisk Auto pozwala całkowicie wyłączyć lub ponownie włączyć ruch.
