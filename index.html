@@ -1,115 +1,75 @@
 <!doctype html>
 <html lang="pl">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f7f4ef" />
-    <meta
-      name="description"
-      content="Lunéa No. 06 — mobilna karta produktu z interaktywną lupą."
-    />
-    <title>Lunéa — naszyjnik No. 06</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="script.js" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mobilna karuzela produktów SHIFT">
+    <title>SHIFT® — karuzela produktów</title>
+    <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <header class="topbar">
-      <button class="icon-button" type="button" aria-label="Otwórz menu">
-        <span></span><span></span>
-      </button>
-      <a class="wordmark" href="#" aria-label="Lunéa, strona główna">LUNÉA</a>
-      <button class="bag-button" type="button" aria-label="Koszyk, 0 produktów">
-        <span class="bag-icon" aria-hidden="true"></span>
-        <span class="bag-count">0</span>
-      </button>
-    </header>
-
     <main>
-      <section class="product-gallery" aria-label="Galeria produktu">
-        <div class="eyebrow-row">
-          <p>KOLEKCJA / ÉCLAT</p>
-          <span>01 — 03</span>
+      <nav class="nav" aria-label="Główna nawigacja">
+        <a class="brand" href="#">SHIFT<span>®</span></a>
+        <p>Drop 04 / 2026</p>
+        <button class="bag" type="button" aria-label="Koszyk, 2 produkty">Koszyk <b>2</b></button>
+      </nav>
+
+      <header class="intro">
+        <div>
+          <p class="eyebrow">Nowa kolekcja</p>
+          <h1>Ruch, który<br>przyciąga wzrok.</h1>
+        </div>
+        <div class="intro-copy">
+          <p>Przeciągnij karty palcem. Karuzela zatrzyma się dokładnie tam, gdzie chcesz.</p>
+          <span class="swipe-hint">Przesuń <i>→</i></span>
+        </div>
+      </header>
+
+      <section class="carousel-shell" aria-label="Karuzela produktów">
+        <div class="carousel" id="carousel" tabindex="0">
+          <article class="product-card sand" data-index="0" aria-label="Air One, 449 zł">
+            <div class="card-top"><span>01</span><button type="button" aria-label="Dodaj Air One do ulubionych">♡</button></div>
+            <div class="product-image"><img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1100&q=85" alt="Air One" draggable="false"></div>
+            <div class="product-info"><div><p>Sneakersy / Sand</p><h2>Air One</h2></div><strong>449 zł</strong></div>
+            <button class="quick-add" type="button">Szybki zakup <span>＋</span></button>
+          </article>
+
+          <article class="product-card blue" data-index="1" aria-label="Cloud 90, 529 zł">
+            <div class="card-top"><span>02</span><button type="button" aria-label="Dodaj Cloud 90 do ulubionych">♡</button></div>
+            <div class="product-image"><img src="https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1100&q=85" alt="Cloud 90" draggable="false"></div>
+            <div class="product-info"><div><p>Sneakersy / Cobalt</p><h2>Cloud 90</h2></div><strong>529 zł</strong></div>
+            <button class="quick-add" type="button">Szybki zakup <span>＋</span></button>
+          </article>
+
+          <article class="product-card cream" data-index="2" aria-label="Mono Run, 479 zł">
+            <div class="card-top"><span>03</span><button type="button" aria-label="Dodaj Mono Run do ulubionych">♡</button></div>
+            <div class="product-image"><img src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=1100&q=85" alt="Mono Run" draggable="false"></div>
+            <div class="product-info"><div><p>Sneakersy / Off-white</p><h2>Mono Run</h2></div><strong>479 zł</strong></div>
+            <button class="quick-add" type="button">Szybki zakup <span>＋</span></button>
+          </article>
+
+          <article class="product-card ink" data-index="3" aria-label="Night Shift, 559 zł">
+            <div class="card-top"><span>04</span><button type="button" aria-label="Dodaj Night Shift do ulubionych">♡</button></div>
+            <div class="product-image"><img src="https://images.unsplash.com/photo-1600269452121-4f2416e55c28?auto=format&fit=crop&w=1100&q=85" alt="Night Shift" draggable="false"></div>
+            <div class="product-info"><div><p>Sneakersy / Black</p><h2>Night Shift</h2></div><strong>559 zł</strong></div>
+            <button class="quick-add" type="button">Szybki zakup <span>＋</span></button>
+          </article>
+          <div class="track-end" aria-hidden="true"></div>
         </div>
 
-        <div
-          class="zoom-stage"
-          id="zoomStage"
-          role="img"
-          tabindex="0"
-          aria-label="Naszyjnik Lunéa No. 06. Uszczypnij zdjęcie lub dotknij je dwukrotnie, aby powiększyć."
-        >
-          <img
-            id="productImage"
-            src="SE-N6-1-D9s-preview.jpg"
-            data-preview-src="SE-N6-1-D9s-preview.jpg"
-            data-full-src="SE-N6-1-D9s.jpg"
-            alt="Długi naszyjnik w kolorze różowego złota z ozdobnym zapięciem"
-            draggable="false"
-          />
-          <div class="zoom-hint" id="zoomHint">
-            <span class="zoom-glyph" aria-hidden="true"></span>
-            <span>USZCZYPNIJ LUB DOTKNIJ 2×</span>
+        <div class="controls">
+          <div class="arrow-group">
+            <button id="previous" type="button" aria-label="Poprzedni produkt">←</button>
+            <button id="next" type="button" aria-label="Następny produkt">→</button>
           </div>
-          <button class="zoom-toggle" id="zoomToggle" type="button" aria-label="Włącz powiększenie">
-            <span aria-hidden="true"></span>
-          </button>
-          <button class="gallery-close" id="galleryClose" type="button" aria-label="Zamknij zdjęcie">
-            <span aria-hidden="true"></span>
-          </button>
-        </div>
-
-        <div class="gallery-footer">
-          <div class="gallery-dots" aria-label="Zdjęcie 1 z 3">
-            <span class="active"></span><span></span><span></span>
-          </div>
-          <p>Uszczypnij, aby przybliżyć</p>
+          <div class="progress" id="progress" aria-label="Wybór produktu"></div>
+          <button id="autoplay" type="button" class="autoplay" aria-pressed="false">Auto <span>Wył.</span></button>
         </div>
       </section>
 
-      <section class="product-info">
-        <div class="product-heading">
-          <div>
-            <p class="kicker">LIMITOWANA EDYCJA</p>
-            <h1>Naszyjnik<br />No. 06</h1>
-          </div>
-          <p class="price">890 <span>PLN</span></p>
-        </div>
-
-        <p class="description">
-          Subtelna forma, która przyciąga spojrzenie. Ręcznie wykończony łańcuch
-          z charakterystycznym zapięciem i świetlistym detalem.
-        </p>
-
-        <div class="details">
-          <div><span>Materiał</span><strong>Srebro 925 / różowe złoto</strong></div>
-          <div><span>Długość</span><strong>72 cm</strong></div>
-        </div>
-
-        <div class="purchase">
-          <button class="add-button" type="button" id="addButton">
-            <span id="addButtonLabel">Dodaj do koszyka</span>
-            <span aria-hidden="true">→</span>
-          </button>
-          <button class="wishlist" type="button" aria-label="Dodaj do ulubionych">
-            <span aria-hidden="true">♡</span>
-          </button>
-        </div>
-
-        <div class="delivery-note">
-          <span class="status-dot" aria-hidden="true"></span>
-          <p>Gotowy do wysyłki · dostawa w 1–2 dni</p>
-        </div>
-      </section>
+      <footer><p>Test karuzeli / dotyk + klawiatura</p><p>SHIFT® Studio</p></footer>
     </main>
-
-    <div class="toast" id="toast" role="status" aria-live="polite">
-      Produkt dodany do koszyka
-    </div>
+    <script src="script.js"></script>
   </body>
 </html>
