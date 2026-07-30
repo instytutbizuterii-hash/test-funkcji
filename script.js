@@ -1,6 +1,5 @@
 const stage = document.querySelector("#zoomStage");
 const image = document.querySelector("#productImage");
-const lens = document.querySelector("#lens");
 const toggle = document.querySelector("#zoomToggle");
 const addButton = document.querySelector("#addButton");
 const addButtonLabel = document.querySelector("#addButtonLabel");
@@ -8,77 +7,193 @@ const bagCount = document.querySelector(".bag-count");
 const wishlist = document.querySelector(".wishlist");
 const toast = document.querySelector("#toast");
 
-let zoomActive = false;
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const DOUBLE_TAP_SCALE = 2.6;
+
+let scale = 1;
+let translateX = 0;
+let translateY = 0;
+let startScale = 1;
+let startDistance = 0;
+let startTranslateX = 0;
+let startTranslateY = 0;
+let dragStartX = 0;
+let dragStartY = 0;
+let lastTap = 0;
 let toastTimer;
-const zoom = 2.6;
+const pointers = new Map();
 
-function setZoom(active) {
-  zoomActive = active;
-  stage.classList.toggle("zooming", active);
-  toggle.setAttribute("aria-label", active ? "Wyłącz powiększenie" : "Włącz powiększenie");
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
-function moveLens(clientX, clientY) {
-  if (!zoomActive) return;
-
+function constrainPosition() {
   const rect = stage.getBoundingClientRect();
-  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
-  const lensSize = lens.offsetWidth;
-
-  lens.style.left = `${x}px`;
-  lens.style.top = `${y}px`;
-  lens.style.backgroundSize = `${rect.width * zoom}px ${rect.height * zoom}px`;
-  lens.style.backgroundPosition = `${-(x * zoom - lensSize / 2)}px ${-(y * zoom - lensSize / 2)}px`;
+  const maxX = Math.max(0, (rect.width * scale - rect.width) / 2);
+  const maxY = Math.max(0, (rect.height * scale - rect.height) / 2);
+  translateX = clamp(translateX, -maxX, maxX);
+  translateY = clamp(translateY, -maxY, maxY);
 }
 
-function activateAt(event) {
-  setZoom(true);
-  const point = event.touches?.[0] ?? event;
-  moveLens(point.clientX, point.clientY);
+function render(animate = false) {
+  constrainPosition();
+  image.style.transition = animate
+    ? "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)"
+    : "";
+  image.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
+
+  const zoomed = scale > MIN_SCALE;
+  stage.classList.toggle("zooming", zoomed);
+  toggle.setAttribute("aria-label", zoomed ? "Przywróć całe zdjęcie" : "Powiększ zdjęcie");
+  stage.setAttribute("aria-label", `Naszyjnik Lunéa No. 06. Powiększenie ${Math.round(scale * 100)}%.`);
+}
+
+function zoomAt(clientX, clientY, nextScale) {
+  const rect = stage.getBoundingClientRect();
+  const oldScale = scale;
+  const localX = clientX - rect.left - rect.width / 2;
+  const localY = clientY - rect.top - rect.height / 2;
+
+  scale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
+  const ratio = scale / oldScale;
+  translateX = localX - (localX - translateX) * ratio;
+  translateY = localY - (localY - translateY) * ratio;
+  if (scale === MIN_SCALE) {
+    translateX = 0;
+    translateY = 0;
+  }
+  render(true);
+}
+
+function resetZoom() {
+  scale = MIN_SCALE;
+  translateX = 0;
+  translateY = 0;
+  render(true);
+}
+
+function pointerDistance() {
+  const [first, second] = [...pointers.values()];
+  return Math.hypot(second.x - first.x, second.y - first.y);
+}
+
+function pointerCenter() {
+  const [first, second] = [...pointers.values()];
+  return {
+    x: (first.x + second.x) / 2,
+    y: (first.y + second.y) / 2,
+  };
 }
 
 stage.addEventListener("pointerdown", (event) => {
-  if (event.target === toggle) return;
-  if (zoomActive) {
-    moveLens(event.clientX, event.clientY);
-  } else {
-    activateAt(event);
+  if (event.target.closest("#zoomToggle")) return;
+  stage.setPointerCapture(event.pointerId);
+  pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  stage.classList.add("gesture-active");
+
+  if (pointers.size === 1) {
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    startTranslateX = translateX;
+    startTranslateY = translateY;
+    if (scale > MIN_SCALE) stage.classList.add("dragging");
+  } else if (pointers.size === 2) {
+    startDistance = pointerDistance();
+    startScale = scale;
+    startTranslateX = translateX;
+    startTranslateY = translateY;
   }
 });
 
 stage.addEventListener("pointermove", (event) => {
-  if (zoomActive) moveLens(event.clientX, event.clientY);
+  if (!pointers.has(event.pointerId)) return;
+  pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+  if (pointers.size === 2) {
+    const center = pointerCenter();
+    const nextScale = clamp(startScale * (pointerDistance() / startDistance), MIN_SCALE, MAX_SCALE);
+    const rect = stage.getBoundingClientRect();
+    const localX = center.x - rect.left - rect.width / 2;
+    const localY = center.y - rect.top - rect.height / 2;
+    const ratio = nextScale / startScale;
+    scale = nextScale;
+    translateX = localX - (localX - startTranslateX) * ratio;
+    translateY = localY - (localY - startTranslateY) * ratio;
+    render();
+  } else if (pointers.size === 1 && scale > MIN_SCALE) {
+    translateX = startTranslateX + event.clientX - dragStartX;
+    translateY = startTranslateY + event.clientY - dragStartY;
+    render();
+  }
 });
 
-stage.addEventListener("pointerleave", () => {
-  if (window.matchMedia("(hover: hover)").matches) setZoom(false);
-});
+function finishPointer(event) {
+  if (!pointers.has(event.pointerId)) return;
+  pointers.delete(event.pointerId);
+  stage.classList.remove("dragging");
+
+  if (pointers.size === 0) {
+    stage.classList.remove("gesture-active");
+    if (scale < 1.08) resetZoom();
+
+    const moved = Math.hypot(event.clientX - dragStartX, event.clientY - dragStartY);
+    const now = Date.now();
+    if (moved < 12 && now - lastTap < 320) {
+      if (scale > MIN_SCALE) {
+        resetZoom();
+      } else {
+        zoomAt(event.clientX, event.clientY, DOUBLE_TAP_SCALE);
+      }
+      lastTap = 0;
+    } else if (moved < 12) {
+      lastTap = now;
+    }
+  } else if (pointers.size === 1) {
+    const remaining = [...pointers.values()][0];
+    dragStartX = remaining.x;
+    dragStartY = remaining.y;
+    startTranslateX = translateX;
+    startTranslateY = translateY;
+  }
+}
+
+stage.addEventListener("pointerup", finishPointer);
+stage.addEventListener("pointercancel", finishPointer);
+
+stage.addEventListener(
+  "wheel",
+  (event) => {
+    if (!event.ctrlKey && scale === MIN_SCALE) return;
+    event.preventDefault();
+    zoomAt(event.clientX, event.clientY, scale * Math.exp(-event.deltaY * 0.002));
+  },
+  { passive: false },
+);
 
 stage.addEventListener("keydown", (event) => {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
-    setZoom(!zoomActive);
-    if (zoomActive) {
+    if (scale > MIN_SCALE) resetZoom();
+    else {
       const rect = stage.getBoundingClientRect();
-      moveLens(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, DOUBLE_TAP_SCALE);
     }
   }
-  if (event.key === "Escape") setZoom(false);
+  if (event.key === "Escape") resetZoom();
 });
 
 toggle.addEventListener("click", (event) => {
   event.stopPropagation();
-  setZoom(!zoomActive);
-  if (zoomActive) {
+  if (scale > MIN_SCALE) resetZoom();
+  else {
     const rect = stage.getBoundingClientRect();
-    moveLens(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, DOUBLE_TAP_SCALE);
   }
 });
 
-image.addEventListener("load", () => {
-  lens.style.backgroundImage = `url("${image.currentSrc || image.src}")`;
-});
+window.addEventListener("resize", () => render());
+render();
 
 addButton.addEventListener("click", () => {
   const wasAdded = addButton.classList.toggle("added");
@@ -96,8 +211,5 @@ addButton.addEventListener("click", () => {
 wishlist.addEventListener("click", () => {
   const active = wishlist.classList.toggle("active");
   wishlist.querySelector("span").textContent = active ? "♥" : "♡";
-  wishlist.setAttribute(
-    "aria-label",
-    active ? "Usuń z ulubionych" : "Dodaj do ulubionych",
-  );
+  wishlist.setAttribute("aria-label", active ? "Usuń z ulubionych" : "Dodaj do ulubionych");
 });
