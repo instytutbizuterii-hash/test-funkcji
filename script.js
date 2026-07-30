@@ -1,82 +1,161 @@
 const carousel = document.querySelector("#carousel");
-const cards = [...carousel.querySelectorAll(".product-card")];
+const originalCards = [...carousel.querySelectorAll(".product-card")];
 const progress = document.querySelector("#progress");
 const previous = document.querySelector("#previous");
 const next = document.querySelector("#next");
 const autoplay = document.querySelector("#autoplay");
+const trackEnd = carousel.querySelector(".track-end");
 
 let active = 0;
-let timer = null;
+let autoTimer = null;
 let resumeTimer = null;
+let scrollTimer = null;
 let autoplayEnabled = true;
+let isResetting = false;
 
-cards.forEach((card, index) => {
+// Kopie skrajnych kart zapewniają niewidoczne przejście między końcem i początkiem.
+const firstClone = originalCards[0].cloneNode(true);
+const lastClone = originalCards[originalCards.length - 1].cloneNode(true);
+
+firstClone.dataset.clone = "first";
+lastClone.dataset.clone = "last";
+[firstClone, lastClone].forEach((clone) => {
+  clone.setAttribute("aria-hidden", "true");
+  clone.querySelectorAll("button").forEach((button) => (button.tabIndex = -1));
+});
+
+trackEnd.remove();
+carousel.prepend(lastClone);
+carousel.append(firstClone);
+
+const renderedCards = [...carousel.querySelectorAll(".product-card")];
+
+originalCards.forEach((card, index) => {
   const dot = document.createElement("button");
   dot.type = "button";
   dot.setAttribute("aria-label", `Pokaż produkt ${index + 1}`);
-  dot.addEventListener("click", () => goTo(index));
+  dot.addEventListener("click", () => {
+    pauseForInteraction();
+    goToLogical(index);
+  });
   progress.append(dot);
 });
 
 const dots = [...progress.children];
 
-function updateControls(index) {
-  active = index;
-  dots.forEach((dot, dotIndex) => dot.classList.toggle("active", dotIndex === active));
-  previous.disabled = active === 0;
-  next.disabled = active === cards.length - 1;
-  progress.setAttribute("aria-label", `Slajd ${active + 1} z ${cards.length}`);
+function cardLeft(card) {
+  const padding = Number.parseFloat(getComputedStyle(carousel).paddingLeft) || 0;
+  return card.offsetLeft - padding;
 }
 
-function goTo(index) {
-  const target = Math.max(0, Math.min(cards.length - 1, index));
-  cards[target].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+function scrollToPhysical(index, behavior = "smooth") {
+  const safeIndex = Math.max(0, Math.min(renderedCards.length - 1, index));
+  carousel.scrollTo({ left: cardLeft(renderedCards[safeIndex]), behavior });
+}
+
+function nearestPhysicalIndex() {
+  return renderedCards.reduce(
+    (nearest, card, index) => {
+      const distance = Math.abs(cardLeft(card) - carousel.scrollLeft);
+      return distance < nearest.distance ? { index, distance } : nearest;
+    },
+    { index: 1, distance: Number.POSITIVE_INFINITY },
+  ).index;
+}
+
+function updateControls(logicalIndex) {
+  active = logicalIndex;
+  dots.forEach((dot, index) => dot.classList.toggle("active", index === active));
+  progress.setAttribute("aria-label", `Slajd ${active + 1} z ${originalCards.length}`);
+}
+
+function settleInfiniteLoop() {
+  if (isResetting) return;
+  const physical = nearestPhysicalIndex();
+
+  if (physical === 0) {
+    isResetting = true;
+    scrollToPhysical(originalCards.length, "auto");
+    updateControls(originalCards.length - 1);
+    requestAnimationFrame(() => (isResetting = false));
+    return;
+  }
+
+  if (physical === renderedCards.length - 1) {
+    isResetting = true;
+    scrollToPhysical(1, "auto");
+    updateControls(0);
+    requestAnimationFrame(() => (isResetting = false));
+    return;
+  }
+
+  updateControls(physical - 1);
+}
+
+function move(direction) {
+  const physical = nearestPhysicalIndex();
+  scrollToPhysical(physical + direction);
+}
+
+function goToLogical(index) {
+  const normalized = ((index % originalCards.length) + originalCards.length) % originalCards.length;
+  scrollToPhysical(normalized + 1);
 }
 
 function stopAutoplay() {
-  window.clearInterval(timer);
+  window.clearTimeout(autoTimer);
+  window.clearInterval(autoTimer);
   window.clearTimeout(resumeTimer);
-  timer = null;
+  autoTimer = null;
   resumeTimer = null;
 }
 
-function startAutoplay() {
+function startAutoplay(firstMoveDelay = 1200) {
   stopAutoplay();
-  if (!autoplayEnabled || document.hidden) return;
-  timer = window.setInterval(() => {
-    goTo((active + 1) % cards.length);
-  }, 3000);
+  if (!autoplayEnabled) return;
+
+  autoTimer = window.setTimeout(() => {
+    move(1);
+    autoTimer = window.setInterval(() => move(1), 3000);
+  }, firstMoveDelay);
 }
 
 function pauseForInteraction() {
   if (!autoplayEnabled) return;
   stopAutoplay();
-  resumeTimer = window.setTimeout(startAutoplay, 5000);
+  resumeTimer = window.setTimeout(() => startAutoplay(500), 5000);
 }
 
-const observer = new IntersectionObserver(
-  (entries) => {
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if (visible) updateControls(Number(visible.target.dataset.index));
+carousel.addEventListener(
+  "scroll",
+  () => {
+    window.clearTimeout(scrollTimer);
+    scrollTimer = window.setTimeout(settleInfiniteLoop, 140);
   },
-  { root: carousel, threshold: [0.55, 0.75, 0.95] },
+  { passive: true },
 );
 
-cards.forEach((card) => observer.observe(card));
-previous.addEventListener("click", () => goTo(active - 1));
-next.addEventListener("click", () => goTo(active + 1));
-
+carousel.addEventListener("pointerdown", pauseForInteraction);
+carousel.addEventListener("wheel", pauseForInteraction, { passive: true });
 carousel.addEventListener("keydown", (event) => {
   if (event.key === "ArrowRight") {
     pauseForInteraction();
-    goTo(active + 1);
+    move(1);
   }
   if (event.key === "ArrowLeft") {
     pauseForInteraction();
-    goTo(active - 1);
+    move(-1);
   }
+});
+
+previous.addEventListener("click", () => {
+  pauseForInteraction();
+  move(-1);
+});
+
+next.addEventListener("click", () => {
+  pauseForInteraction();
+  move(1);
 });
 
 autoplay.addEventListener("click", () => {
@@ -84,28 +163,17 @@ autoplay.addEventListener("click", () => {
   autoplay.classList.toggle("on", autoplayEnabled);
   autoplay.setAttribute("aria-pressed", String(autoplayEnabled));
   autoplay.querySelector("span").textContent = autoplayEnabled ? "Wł." : "Wył.";
-  if (autoplayEnabled) startAutoplay();
-  else stopAutoplay();
-});
 
-carousel.addEventListener("pointerdown", pauseForInteraction);
-carousel.addEventListener("wheel", pauseForInteraction, { passive: true });
-carousel.addEventListener("mouseenter", pauseForInteraction);
-carousel.addEventListener("mouseleave", () => {
-  if (autoplayEnabled) {
-    window.clearTimeout(resumeTimer);
-    resumeTimer = window.setTimeout(startAutoplay, 1200);
-  }
+  if (autoplayEnabled) startAutoplay(300);
+  else stopAutoplay();
 });
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) stopAutoplay();
-  else startAutoplay();
+  else if (autoplayEnabled) startAutoplay(500);
 });
 
-previous.addEventListener("click", pauseForInteraction);
-next.addEventListener("click", pauseForInteraction);
-dots.forEach((dot) => dot.addEventListener("click", pauseForInteraction));
-
+// Ustawiamy pierwszą prawdziwą kartę bez widocznego przewinięcia.
+scrollToPhysical(1, "auto");
 updateControls(0);
 startAutoplay();
