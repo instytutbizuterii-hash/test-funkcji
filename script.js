@@ -31,10 +31,10 @@ let lastTap = 0;
 let toastTimer;
 const pointers = new Map();
 let galleryExpanded = false;
-let fullResolutionLoaded = false;
-let fullResolutionLoading = false;
-let fullResolutionPromise = null;
 let galleryTransitioning = false;
+let fullResolutionPromise = null;
+let galleryRevealX = window.innerWidth / 2;
+let galleryRevealY = window.innerHeight / 2;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -131,83 +131,113 @@ function resetZoom() {
   render();
 }
 
-function loadFullResolution() {
-  const fullSrc = image.dataset.fullSrc;
-
-  if (!fullSrc) {
-    return Promise.resolve(false);
-  }
-
-  if (fullResolutionLoaded) {
-    return Promise.resolve(true);
-  }
-
+function preloadFullResolution() {
   if (fullResolutionPromise) {
     return fullResolutionPromise;
   }
 
-  fullResolutionLoading = true;
-  stage.classList.add("full-image-loading");
+  const fullSrc = image.dataset.fullSrc;
 
-  fullResolutionPromise = new Promise((resolve) => {
+  fullResolutionPromise = new Promise((resolve, reject) => {
     const fullImage = new Image();
 
     fullImage.decoding = "async";
-    fullImage.src = fullSrc;
-
     fullImage.onload = async () => {
       try {
         await fullImage.decode();
       } catch {
-        // Zdjęcie jest już pobrane, więc można kontynuować.
+        // Obraz jest pobrany i może zostać użyty mimo błędu decode().
       }
 
-      image.removeAttribute("srcset");
-      image.removeAttribute("sizes");
-      image.classList.add("switching-resolution");
-
-      image.addEventListener(
-        "load",
-        () => {
-          fullResolutionLoaded = true;
-          fullResolutionLoading = false;
-          fullResolutionPromise = null;
-
-          stage.classList.remove("full-image-loading");
-          image.classList.remove("switching-resolution");
-          image.classList.add("full-resolution-loaded");
-
-          render();
-          resolve(true);
-        },
-        { once: true },
-      );
-
-      requestAnimationFrame(() => {
-        image.src = fullSrc;
-      });
+      resolve(fullSrc);
     };
-
-    fullImage.onerror = () => {
-      fullResolutionLoading = false;
-      fullResolutionPromise = null;
-
-      stage.classList.remove("full-image-loading");
-      image.classList.remove("switching-resolution");
-
-      console.warn(
-        "Nie udało się załadować zdjęcia w pełnej rozdzielczości.",
-      );
-
-      resolve(false);
-    };
+    fullImage.onerror = () => reject(
+      new Error("Nie udało się pobrać zdjęcia w pełnej rozdzielczości."),
+    );
+    fullImage.src = fullSrc;
   });
 
   return fullResolutionPromise;
 }
 
+async function applyFullResolution() {
+  try {
+    const fullSrc = await preloadFullResolution();
+
+    if (image.getAttribute("src") === fullSrc) {
+      render();
+      return true;
+    }
+
+    await new Promise((resolve, reject) => {
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", reject, { once: true });
+      image.src = fullSrc;
+    });
+
+    render();
+    return true;
+  } catch (error) {
+    console.warn(error.message);
+    return false;
+  }
+}
+
+function restoreProductPreview() {
+  const previewSrc = image.dataset.previewSrc;
+
+  if (!previewSrc || image.getAttribute("src") === previewSrc) return;
+
+  image.addEventListener("load", () => render(), { once: true });
+  image.src = previewSrc;
+}
+
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getRevealGeometry() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const x = clamp(galleryRevealX, 0, width);
+  const y = clamp(galleryRevealY, 0, height);
+  const radius = Math.hypot(
+    Math.max(x, width - x),
+    Math.max(y, height - y),
+  );
+
+  return { x, y, radius };
+}
+
+function animateGalleryControls(opening) {
+  const controls = [galleryClose, toggle];
+
+  controls.forEach((control, index) => {
+    const controlAnimation = control.animate(
+      opening
+        ? [
+            { opacity: 0, transform: "translateY(-10px) scale(0.72) rotate(-8deg)" },
+            { opacity: 1, transform: "translateY(2px) scale(1.06) rotate(1deg)", offset: 0.72 },
+            { opacity: 1, transform: "translateY(0) scale(1) rotate(0)" },
+          ]
+        : [
+            { opacity: 1, transform: "translateY(0) scale(1)" },
+            { opacity: 0, transform: "translateY(-8px) scale(0.8)" },
+          ],
+      {
+        duration: opening ? 440 : 220,
+        delay: opening ? 160 + index * 55 : index * 20,
+        easing: opening
+          ? "cubic-bezier(0.16, 1, 0.3, 1)"
+          : "cubic-bezier(0.4, 0, 1, 1)",
+        fill: "both",
+      },
+    );
+
+    controlAnimation.finished
+      .catch(() => {})
+      .finally(() => controlAnimation.cancel());
+  });
 }
 
 async function openGallery() {
@@ -218,32 +248,58 @@ async function openGallery() {
   stage.classList.add("expanded");
   document.body.classList.add("gallery-open");
   render();
-  loadFullResolution();
+
+  const fullQualityReady = applyFullResolution();
+  let openingAnimation = Promise.resolve();
 
   if (!prefersReducedMotion() && stage.animate) {
+    const { x, y, radius } = getRevealGeometry();
     const animation = stage.animate(
       [
         {
-          clipPath: "circle(8% at 50% 50%)",
-          opacity: 0,
+          clipPath: `circle(0px at ${x}px ${y}px)`,
+          opacity: 0.35,
         },
         {
-          clipPath: "circle(150% at 50% 50%)",
+          clipPath: `circle(${radius * 1.035}px at ${x}px ${y}px)`,
+          opacity: 1,
+          offset: 0.82,
+        },
+        {
+          clipPath: `circle(${radius}px at ${x}px ${y}px)`,
           opacity: 1,
         },
       ],
       {
-        duration: 460,
+        duration: 620,
+        easing: "cubic-bezier(0.12, 0.78, 0.18, 1)",
+      },
+    );
+
+    image.animate(
+      [
+        { filter: "blur(7px) saturate(0.72) brightness(1.1)", opacity: 0.62 },
+        { filter: "blur(0) saturate(1.08) brightness(1.02)", opacity: 1, offset: 0.78 },
+        { filter: "none", opacity: 1 },
+      ],
+      {
+        duration: 640,
         easing: "cubic-bezier(0.16, 1, 0.3, 1)",
       },
     );
 
-    try {
-      await animation.finished;
-    } catch {
-      // Animacja mogła zostać przerwana przez zmianę widoku.
+    animateGalleryControls(true);
+
+    if ("vibrate" in navigator) {
+      navigator.vibrate(8);
     }
+
+    openingAnimation = animation.finished.catch(() => {
+      // Animacja mogła zostać przerwana przez zmianę widoku.
+    });
   }
+
+  await Promise.all([openingAnimation, fullQualityReady]);
 
   galleryTransitioning = false;
 
@@ -264,22 +320,36 @@ async function closeGallery(animate = true) {
   resetZoom();
 
   if (animate && !prefersReducedMotion() && stage.animate) {
+    const { x, y, radius } = getRevealGeometry();
     const animation = stage.animate(
       [
         {
-          clipPath: "circle(150% at 50% 50%)",
+          clipPath: `circle(${radius}px at ${x}px ${y}px)`,
           opacity: 1,
         },
         {
-          clipPath: "circle(8% at 50% 50%)",
-          opacity: 0,
+          clipPath: `circle(0px at ${x}px ${y}px)`,
+          opacity: 0.2,
         },
       ],
       {
-        duration: 340,
-        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        duration: 420,
+        easing: "cubic-bezier(0.55, 0, 1, 0.45)",
       },
     );
+
+    image.animate(
+      [
+        { filter: "none", opacity: 1 },
+        { filter: "blur(5px) saturate(0.8)", opacity: 0.5 },
+      ],
+      {
+        duration: 360,
+        easing: "cubic-bezier(0.4, 0, 1, 1)",
+      },
+    );
+
+    animateGalleryControls(false);
 
     try {
       await animation.finished;
@@ -291,6 +361,7 @@ async function closeGallery(animate = true) {
   stage.classList.remove("expanded");
   document.body.classList.remove("gallery-open");
   galleryTransitioning = false;
+  restoreProductPreview();
   render();
   toggle.focus({ preventScroll: true });
 }
@@ -331,6 +402,14 @@ stage.addEventListener("pointerdown", (event) => {
     return;
   }
 
+  if (!galleryExpanded) {
+    galleryRevealX = event.clientX;
+    galleryRevealY = event.clientY;
+    preloadFullResolution().catch(() => {
+      // applyFullResolution() obsłuży komunikat i ewentualny fallback.
+    });
+  }
+
   if (pointers.size >= 2) return;
 
   try {
@@ -365,6 +444,9 @@ stage.addEventListener("pointerdown", (event) => {
     gestureHadPinch = true;
 
     if (!galleryExpanded) {
+      const center = pointerCenter();
+      galleryRevealX = center.x;
+      galleryRevealY = center.y;
       openGallery();
     } else if (!galleryTransitioning) {
       preparePinchGesture();
@@ -378,6 +460,8 @@ stage.addEventListener(
     if (event.touches.length !== 2 || galleryExpanded) return;
 
     event.preventDefault();
+    galleryRevealX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+    galleryRevealY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
     openGallery();
   },
   { passive: false },

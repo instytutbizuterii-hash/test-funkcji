@@ -177,43 +177,7 @@ button {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  transition:
-    opacity 180ms ease,
-    filter 180ms ease;
   width: auto;
-}
-
-.zoom-stage.full-image-loading::after {
-  align-items: center;
-  background: rgba(247, 244, 239, 0.9);
-  border-radius: 999px;
-  bottom: max(24px, env(safe-area-inset-bottom));
-  content: "Ładowanie pełnej jakości…";
-  display: flex;
-  font-size: 10px;
-  left: 50%;
-  letter-spacing: 0.08em;
-  min-height: 32px;
-  padding: 0 16px;
-  pointer-events: none;
-  position: absolute;
-  text-transform: uppercase;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  z-index: 9;
-}
-
-.zoom-stage.full-image-loading > img {
-  filter: blur(1px);
-}
-
-.zoom-stage > img.switching-resolution {
-  opacity: 0.92;
-}
-
-.zoom-stage > img.full-resolution-loaded {
-  filter: none;
-  opacity: 1;
 }
 
 .zoom-stage.zooming {
