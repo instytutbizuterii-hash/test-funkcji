@@ -7,6 +7,7 @@ const addButtonLabel = document.querySelector("#addButtonLabel");
 const bagCount = document.querySelector(".bag-count");
 const wishlist = document.querySelector(".wishlist");
 const toast = document.querySelector("#toast");
+const versionButtons = document.querySelectorAll(".version-button");
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
@@ -31,6 +32,10 @@ let lastTap = 0;
 let toastTimer;
 const pointers = new Map();
 let galleryExpanded = false;
+let activeVersion = "a";
+let fullResolutionLoaded = true;
+let fullResolutionLoading = false;
+let fullResolutionPromise = null;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -127,6 +132,119 @@ function resetZoom() {
   render();
 }
 
+function loadFullResolution() {
+  const fullSrc = image.dataset.fullSrc;
+
+  if (!fullSrc || activeVersion !== "b") {
+    return Promise.resolve(false);
+  }
+
+  if (fullResolutionLoaded) {
+    return Promise.resolve(true);
+  }
+
+  if (fullResolutionPromise) {
+    return fullResolutionPromise;
+  }
+
+  fullResolutionLoading = true;
+  stage.classList.add("full-image-loading");
+
+  fullResolutionPromise = new Promise((resolve) => {
+    const fullImage = new Image();
+
+    fullImage.decoding = "async";
+    fullImage.src = fullSrc;
+
+    fullImage.onload = async () => {
+      try {
+        await fullImage.decode();
+      } catch {
+        // Zdjęcie jest już pobrane, więc można kontynuować.
+      }
+
+      if (activeVersion !== "b") {
+        fullResolutionLoading = false;
+        fullResolutionPromise = null;
+        stage.classList.remove("full-image-loading");
+        resolve(false);
+        return;
+      }
+
+      image.removeAttribute("srcset");
+      image.removeAttribute("sizes");
+      image.classList.add("switching-resolution");
+
+      image.addEventListener(
+        "load",
+        () => {
+          fullResolutionLoaded = true;
+          fullResolutionLoading = false;
+          fullResolutionPromise = null;
+
+          stage.classList.remove("full-image-loading");
+          image.classList.remove("switching-resolution");
+          image.classList.add("full-resolution-loaded");
+
+          render();
+          resolve(true);
+        },
+        { once: true },
+      );
+
+      requestAnimationFrame(() => {
+        image.src = fullSrc;
+      });
+    };
+
+    fullImage.onerror = () => {
+      fullResolutionLoading = false;
+      fullResolutionPromise = null;
+
+      stage.classList.remove("full-image-loading");
+      image.classList.remove("switching-resolution");
+
+      console.warn(
+        "Nie udało się załadować zdjęcia w pełnej rozdzielczości.",
+      );
+
+      resolve(false);
+    };
+  });
+
+  return fullResolutionPromise;
+}
+
+function selectVersion(version) {
+  if (version === activeVersion) return;
+
+  if (galleryExpanded) {
+    closeGallery();
+  } else {
+    resetZoom();
+  }
+
+  activeVersion = version;
+  fullResolutionPromise = null;
+  fullResolutionLoading = false;
+  stage.classList.remove("full-image-loading");
+  image.classList.remove("switching-resolution", "full-resolution-loaded");
+
+  if (version === "b") {
+    fullResolutionLoaded = false;
+    image.src = image.dataset.previewSrc;
+  } else {
+    fullResolutionLoaded = true;
+    image.src = image.dataset.fullSrc;
+  }
+
+  versionButtons.forEach((button) => {
+    const selected = button.dataset.version === version;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
 function openGallery() {
   if (galleryExpanded) return;
 
@@ -135,6 +253,7 @@ function openGallery() {
   document.body.classList.add("gallery-open");
   galleryClose.focus({ preventScroll: true });
   render();
+  loadFullResolution();
 }
 
 function closeGallery() {
@@ -437,6 +556,12 @@ toggle.addEventListener("click", (event) => {
 galleryClose.addEventListener("click", (event) => {
   event.stopPropagation();
   closeGallery();
+});
+
+versionButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    selectVersion(button.dataset.version);
+  });
 });
 
 window.addEventListener("resize", () => render());
