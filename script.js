@@ -431,6 +431,17 @@ stage.addEventListener("pointerdown", (event) => {
   }
 });
 
+stage.addEventListener(
+  "touchstart",
+  (event) => {
+    if (event.touches.length !== 2 || galleryExpanded) return;
+
+    event.preventDefault();
+    openGallery();
+  },
+  { passive: false },
+);
+
 stage.addEventListener("pointermove", (event) => {
   const pointer = pointers.get(event.pointerId);
 
@@ -453,6 +464,11 @@ stage.addEventListener("pointermove", (event) => {
   }
 
   if (galleryTransitioning) return;
+
+  if (pointers.size === 2 && !galleryExpanded) {
+    openGallery();
+    return;
+  }
 
   if (pointers.size === 2) {
     const center = pointerCenter();

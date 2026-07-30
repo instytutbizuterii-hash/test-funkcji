@@ -195,7 +195,7 @@ button {
   overflow: hidden;
   overscroll-behavior: contain;
   position: relative;
-  touch-action: pan-y;
+  touch-action: none;
   transform-origin: top left;
   user-select: none;
 }
