@@ -168,13 +168,14 @@ button {
 
 .zoom-stage > img {
   display: block;
-  height: 100%;
+  height: auto;
+  left: 50%;
   object-fit: contain;
   pointer-events: none;
-  transform-origin: center;
-  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
-  width: 100%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
 }
 
 .zoom-stage.zooming {
@@ -184,10 +185,6 @@ button {
 
 .zoom-stage.dragging {
   cursor: grabbing;
-}
-
-.zoom-stage.gesture-active > img {
-  transition: none;
 }
 
 .zoom-stage.expanded {
@@ -205,9 +202,7 @@ button {
 }
 
 .zoom-stage.expanded > img {
-  height: 100%;
-  object-fit: contain;
-  width: 100%;
+  object-fit: initial;
 }
 
 body.gallery-open {

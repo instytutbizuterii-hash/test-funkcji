@@ -30,20 +30,36 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function getBaseImageSize() {
+  const rect = stage.getBoundingClientRect();
+  const naturalWidth = image.naturalWidth || 4810;
+  const naturalHeight = image.naturalHeight || 6013;
+  const fit = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
+
+  return {
+    width: naturalWidth * fit,
+    height: naturalHeight * fit,
+  };
+}
+
 function constrainPosition() {
   const rect = stage.getBoundingClientRect();
-  const maxX = Math.max(0, (rect.width * scale - rect.width) / 2);
-  const maxY = Math.max(0, (rect.height * scale - rect.height) / 2);
+  const base = getBaseImageSize();
+  const maxX = Math.max(0, (base.width * scale - rect.width) / 2);
+  const maxY = Math.max(0, (base.height * scale - rect.height) / 2);
   translateX = clamp(translateX, -maxX, maxX);
   translateY = clamp(translateY, -maxY, maxY);
 }
 
-function render(animate = false) {
+function render() {
   constrainPosition();
-  image.style.transition = animate
-    ? "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)"
-    : "";
-  image.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
+  const rect = stage.getBoundingClientRect();
+  const base = getBaseImageSize();
+
+  image.style.width = `${base.width * scale}px`;
+  image.style.height = `${base.height * scale}px`;
+  image.style.left = `${rect.width / 2 + translateX}px`;
+  image.style.top = `${rect.height / 2 + translateY}px`;
 
   const zoomed = scale > MIN_SCALE;
   stage.classList.toggle("zooming", zoomed);
@@ -65,14 +81,14 @@ function zoomAt(clientX, clientY, nextScale) {
     translateX = 0;
     translateY = 0;
   }
-  render(true);
+  render();
 }
 
 function resetZoom() {
   scale = MIN_SCALE;
   translateX = 0;
   translateY = 0;
-  render(true);
+  render();
 }
 
 function openGallery() {
@@ -81,7 +97,7 @@ function openGallery() {
   stage.classList.add("expanded");
   document.body.classList.add("gallery-open");
   galleryClose.focus({ preventScroll: true });
-  render(true);
+  render();
 }
 
 function closeGallery() {
@@ -227,6 +243,7 @@ galleryClose.addEventListener("click", (event) => {
 });
 
 window.addEventListener("resize", () => render());
+image.addEventListener("load", () => render());
 render();
 
 addButton.addEventListener("click", () => {
