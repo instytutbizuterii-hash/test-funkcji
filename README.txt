@@ -25,4 +25,5 @@ KARUZELA:
 - zatrzymuje się na każdym produkcie przez około 3 sekundy,
 - po dotknięciu lub ręcznym przesunięciu robi 5 sekund przerwy,
 - następnie sama wznawia przewijanie,
+- przewija się w nieskończoność bez wizualnego powrotu do początku,
 - przycisk Auto pozwala całkowicie wyłączyć lub ponownie włączyć ruch.

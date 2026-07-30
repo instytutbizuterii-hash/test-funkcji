@@ -13,20 +13,24 @@ let scrollTimer = null;
 let autoplayEnabled = true;
 let isResetting = false;
 
-// Kopie skrajnych kart zapewniają niewidoczne przejście między końcem i początkiem.
-const firstClone = originalCards[0].cloneNode(true);
-const lastClone = originalCards[originalCards.length - 1].cloneNode(true);
+// Pełny zestaw po obu stronach sprawia, że korekta pozycji jest niewidoczna.
+function cloneSet(position) {
+  const fragment = document.createDocumentFragment();
+  originalCards.forEach((card) => {
+    const clone = card.cloneNode(true);
+    clone.dataset.clone = position;
+    clone.setAttribute("aria-hidden", "true");
+    clone.querySelectorAll("button").forEach((button) => (button.tabIndex = -1));
+    fragment.append(clone);
+  });
+  return fragment;
+}
 
-firstClone.dataset.clone = "first";
-lastClone.dataset.clone = "last";
-[firstClone, lastClone].forEach((clone) => {
-  clone.setAttribute("aria-hidden", "true");
-  clone.querySelectorAll("button").forEach((button) => (button.tabIndex = -1));
-});
-
+const previousSet = cloneSet("previous");
+const nextSet = cloneSet("next");
 trackEnd.remove();
-carousel.prepend(lastClone);
-carousel.append(firstClone);
+carousel.prepend(previousSet);
+carousel.append(nextSet);
 
 const renderedCards = [...carousel.querySelectorAll(".product-card")];
 
@@ -72,24 +76,26 @@ function updateControls(logicalIndex) {
 function settleInfiniteLoop() {
   if (isResetting) return;
   const physical = nearestPhysicalIndex();
+  const productCount = originalCards.length;
+  const logical = physical % productCount;
 
-  if (physical === 0) {
+  if (physical < productCount) {
     isResetting = true;
-    scrollToPhysical(originalCards.length, "auto");
-    updateControls(originalCards.length - 1);
+    scrollToPhysical(physical + productCount, "auto");
+    updateControls(logical);
     requestAnimationFrame(() => (isResetting = false));
     return;
   }
 
-  if (physical === renderedCards.length - 1) {
+  if (physical >= productCount * 2) {
     isResetting = true;
-    scrollToPhysical(1, "auto");
-    updateControls(0);
+    scrollToPhysical(physical - productCount, "auto");
+    updateControls(logical);
     requestAnimationFrame(() => (isResetting = false));
     return;
   }
 
-  updateControls(physical - 1);
+  updateControls(logical);
 }
 
 function move(direction) {
@@ -99,7 +105,7 @@ function move(direction) {
 
 function goToLogical(index) {
   const normalized = ((index % originalCards.length) + originalCards.length) % originalCards.length;
-  scrollToPhysical(normalized + 1);
+  scrollToPhysical(originalCards.length + normalized);
 }
 
 function stopAutoplay() {
@@ -173,7 +179,7 @@ document.addEventListener("visibilitychange", () => {
   else if (autoplayEnabled) startAutoplay(500);
 });
 
-// Ustawiamy pierwszą prawdziwą kartę bez widocznego przewinięcia.
-scrollToPhysical(1, "auto");
+// Startujemy w środkowym zestawie, więc można przewijać w obie strony.
+scrollToPhysical(originalCards.length, "auto");
 updateControls(0);
 startAutoplay();
