@@ -156,11 +156,13 @@ button {
 }
 
 .zoom-stage {
+  box-sizing: border-box;
   cursor: zoom-in;
   height: min(64vh, 580px);
   margin: 12px auto 8px;
   max-width: 560px;
   overflow: hidden;
+  overscroll-behavior: contain;
   position: relative;
   touch-action: pan-y;
   user-select: none;
@@ -189,20 +191,28 @@ button {
 
 .zoom-stage.expanded {
   background: var(--paper);
+  box-sizing: border-box;
   cursor: zoom-in;
-  height: 100dvh;
+  height: auto;
   inset: 0;
   margin: 0;
   max-width: none;
-  padding: max(16px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+  padding:
+    max(16px, env(safe-area-inset-top))
+    0
+    max(16px, env(safe-area-inset-bottom));
   position: fixed;
   touch-action: none;
-  width: 100vw;
-  z-index: 100;
+  width: auto;
+  z-index: 9999;
 }
 
-.zoom-stage.expanded > img {
-  object-fit: initial;
+.zoom-stage.expanded.zooming {
+  cursor: grab;
+}
+
+.zoom-stage.expanded.dragging {
+  cursor: grabbing;
 }
 
 body.gallery-open {
