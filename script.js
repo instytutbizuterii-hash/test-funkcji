@@ -1,6 +1,7 @@
 const stage = document.querySelector("#zoomStage");
 const image = document.querySelector("#productImage");
 const toggle = document.querySelector("#zoomToggle");
+const galleryClose = document.querySelector("#galleryClose");
 const addButton = document.querySelector("#addButton");
 const addButtonLabel = document.querySelector("#addButtonLabel");
 const bagCount = document.querySelector(".bag-count");
@@ -23,6 +24,7 @@ let dragStartY = 0;
 let lastTap = 0;
 let toastTimer;
 const pointers = new Map();
+let galleryExpanded = false;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -73,6 +75,24 @@ function resetZoom() {
   render(true);
 }
 
+function openGallery() {
+  if (galleryExpanded) return;
+  galleryExpanded = true;
+  stage.classList.add("expanded");
+  document.body.classList.add("gallery-open");
+  galleryClose.focus({ preventScroll: true });
+  render(true);
+}
+
+function closeGallery() {
+  galleryExpanded = false;
+  pointers.clear();
+  stage.classList.remove("expanded", "dragging", "gesture-active");
+  document.body.classList.remove("gallery-open");
+  resetZoom();
+  toggle.focus({ preventScroll: true });
+}
+
 function pointerDistance() {
   const [first, second] = [...pointers.values()];
   return Math.hypot(second.x - first.x, second.y - first.y);
@@ -87,7 +107,7 @@ function pointerCenter() {
 }
 
 stage.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("#zoomToggle")) return;
+  if (event.target.closest("button")) return;
   stage.setPointerCapture(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   stage.classList.add("gesture-active");
@@ -139,7 +159,10 @@ function finishPointer(event) {
 
     const moved = Math.hypot(event.clientX - dragStartX, event.clientY - dragStartY);
     const now = Date.now();
-    if (moved < 12 && now - lastTap < 320) {
+    if (moved < 12 && !galleryExpanded) {
+      openGallery();
+      lastTap = now;
+    } else if (moved < 12 && now - lastTap < 320) {
       if (scale > MIN_SCALE) {
         resetZoom();
       } else {
@@ -180,16 +203,27 @@ stage.addEventListener("keydown", (event) => {
       zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, DOUBLE_TAP_SCALE);
     }
   }
-  if (event.key === "Escape") resetZoom();
+  if (event.key === "Escape") {
+    if (galleryExpanded) closeGallery();
+    else resetZoom();
+  }
 });
 
 toggle.addEventListener("click", (event) => {
   event.stopPropagation();
-  if (scale > MIN_SCALE) resetZoom();
-  else {
+  if (!galleryExpanded) {
+    openGallery();
+  } else if (scale > MIN_SCALE) {
+    resetZoom();
+  } else {
     const rect = stage.getBoundingClientRect();
     zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, DOUBLE_TAP_SCALE);
   }
+});
+
+galleryClose.addEventListener("click", (event) => {
+  event.stopPropagation();
+  closeGallery();
 });
 
 window.addEventListener("resize", () => render());

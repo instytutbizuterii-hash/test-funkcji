@@ -58,6 +58,7 @@ button {
 .icon-button,
 .bag-button,
 .zoom-toggle,
+.gallery-close,
 .wishlist {
   border: 0;
   background: transparent;
@@ -189,6 +190,30 @@ button {
   transition: none;
 }
 
+.zoom-stage.expanded {
+  background: var(--paper);
+  cursor: zoom-in;
+  height: 100dvh;
+  inset: 0;
+  margin: 0;
+  max-width: none;
+  padding: max(16px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+  position: fixed;
+  touch-action: none;
+  width: 100vw;
+  z-index: 100;
+}
+
+.zoom-stage.expanded > img {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+body.gallery-open {
+  overflow: hidden;
+}
+
 .zoom-hint {
   align-items: center;
   bottom: 18px;
@@ -247,6 +272,48 @@ button {
 .zoom-toggle span {
   height: 16px;
   width: 16px;
+}
+
+.gallery-close {
+  align-items: center;
+  background: rgba(247, 244, 239, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  display: none;
+  height: 42px;
+  justify-content: center;
+  left: max(14px, env(safe-area-inset-left));
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  width: 42px;
+  z-index: 8;
+}
+
+.expanded .gallery-close {
+  display: flex;
+}
+
+.gallery-close span,
+.gallery-close span::after {
+  background: currentColor;
+  content: "";
+  height: 1px;
+  position: absolute;
+  transform: rotate(45deg);
+  width: 18px;
+}
+
+.gallery-close span::after {
+  transform: rotate(90deg);
+}
+
+.expanded .zoom-toggle {
+  right: max(14px, env(safe-area-inset-right));
+  top: max(14px, env(safe-area-inset-top));
+}
+
+.expanded .zoom-hint {
+  bottom: max(24px, env(safe-area-inset-bottom));
 }
 
 .gallery-dots {
