@@ -7,7 +7,6 @@ const addButtonLabel = document.querySelector("#addButtonLabel");
 const bagCount = document.querySelector(".bag-count");
 const wishlist = document.querySelector(".wishlist");
 const toast = document.querySelector("#toast");
-const versionButtons = document.querySelectorAll(".version-button");
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
@@ -32,11 +31,9 @@ let lastTap = 0;
 let toastTimer;
 const pointers = new Map();
 let galleryExpanded = false;
-let activeVersion = "a";
-let fullResolutionLoaded = true;
+let fullResolutionLoaded = false;
 let fullResolutionLoading = false;
 let fullResolutionPromise = null;
-let galleryOriginRect = null;
 let galleryTransitioning = false;
 
 function clamp(value, min, max) {
@@ -137,7 +134,7 @@ function resetZoom() {
 function loadFullResolution() {
   const fullSrc = image.dataset.fullSrc;
 
-  if (!fullSrc || activeVersion !== "b") {
+  if (!fullSrc) {
     return Promise.resolve(false);
   }
 
@@ -163,14 +160,6 @@ function loadFullResolution() {
         await fullImage.decode();
       } catch {
         // Zdjęcie jest już pobrane, więc można kontynuować.
-      }
-
-      if (activeVersion !== "b") {
-        fullResolutionLoading = false;
-        fullResolutionPromise = null;
-        stage.classList.remove("full-image-loading");
-        resolve(false);
-        return;
       }
 
       image.removeAttribute("srcset");
@@ -217,78 +206,35 @@ function loadFullResolution() {
   return fullResolutionPromise;
 }
 
-function selectVersion(version) {
-  if (version === activeVersion) return;
-
-  if (galleryExpanded) {
-    closeGallery(false);
-  } else {
-    resetZoom();
-  }
-
-  activeVersion = version;
-  fullResolutionPromise = null;
-  fullResolutionLoading = false;
-  stage.classList.remove("full-image-loading");
-  image.classList.remove("switching-resolution", "full-resolution-loaded");
-
-  if (version === "b") {
-    fullResolutionLoaded = false;
-    image.src = image.dataset.previewSrc;
-  } else {
-    fullResolutionLoaded = true;
-    image.src = image.dataset.fullSrc;
-  }
-
-  versionButtons.forEach((button) => {
-    const selected = button.dataset.version === version;
-    button.classList.toggle("active", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  });
-}
-
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function galleryTransform(fromRect, toRect) {
-  return {
-    x: fromRect.left - toRect.left,
-    y: fromRect.top - toRect.top,
-    scaleX: fromRect.width / toRect.width,
-    scaleY: fromRect.height / toRect.height,
-  };
 }
 
 async function openGallery() {
   if (galleryExpanded || galleryTransitioning) return;
 
   galleryTransitioning = true;
-  galleryOriginRect = stage.getBoundingClientRect();
   galleryExpanded = true;
   stage.classList.add("expanded");
   document.body.classList.add("gallery-open");
   render();
   loadFullResolution();
 
-  const expandedRect = stage.getBoundingClientRect();
-  const start = galleryTransform(galleryOriginRect, expandedRect);
-
   if (!prefersReducedMotion() && stage.animate) {
     const animation = stage.animate(
       [
         {
-          borderRadius: "12px",
-          transform: `translate(${start.x}px, ${start.y}px) scale(${start.scaleX}, ${start.scaleY})`,
+          clipPath: "circle(8% at 50% 50%)",
+          opacity: 0,
         },
         {
-          borderRadius: "0",
-          transform: "translate(0, 0) scale(1, 1)",
+          clipPath: "circle(150% at 50% 50%)",
+          opacity: 1,
         },
       ],
       {
-        duration: 380,
-        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        duration: 460,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
       },
     );
 
@@ -317,24 +263,20 @@ async function closeGallery(animate = true) {
   stage.classList.remove("dragging", "gesture-active");
   resetZoom();
 
-  const expandedRect = stage.getBoundingClientRect();
-  const targetRect = galleryOriginRect || expandedRect;
-  const end = galleryTransform(targetRect, expandedRect);
-
   if (animate && !prefersReducedMotion() && stage.animate) {
     const animation = stage.animate(
       [
         {
-          borderRadius: "0",
-          transform: "translate(0, 0) scale(1, 1)",
+          clipPath: "circle(150% at 50% 50%)",
+          opacity: 1,
         },
         {
-          borderRadius: "12px",
-          transform: `translate(${end.x}px, ${end.y}px) scale(${end.scaleX}, ${end.scaleY})`,
+          clipPath: "circle(8% at 50% 50%)",
+          opacity: 0,
         },
       ],
       {
-        duration: 300,
+        duration: 340,
         easing: "cubic-bezier(0.4, 0, 0.2, 1)",
       },
     );
@@ -349,7 +291,6 @@ async function closeGallery(animate = true) {
   stage.classList.remove("expanded");
   document.body.classList.remove("gallery-open");
   galleryTransitioning = false;
-  galleryOriginRect = null;
   render();
   toggle.focus({ preventScroll: true });
 }
@@ -675,12 +616,6 @@ toggle.addEventListener("click", (event) => {
 galleryClose.addEventListener("click", (event) => {
   event.stopPropagation();
   closeGallery();
-});
-
-versionButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    selectVersion(button.dataset.version);
-  });
 });
 
 window.addEventListener("resize", () => render());

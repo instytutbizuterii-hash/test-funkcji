@@ -155,38 +155,7 @@ button {
   margin: 0;
 }
 
-.version-switcher {
-  background: rgba(33, 31, 28, 0.07);
-  border-radius: 999px;
-  display: grid;
-  gap: 3px;
-  grid-template-columns: 1fr 1fr;
-  margin: 14px auto 0;
-  max-width: 360px;
-  padding: 3px;
-}
-
-.version-button {
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  min-height: 32px;
-  padding: 0 10px;
-  text-transform: uppercase;
-}
-
-.version-button.active {
-  background: var(--paper);
-  box-shadow: 0 2px 10px rgba(33, 31, 28, 0.08);
-  color: var(--ink);
-}
-
 .zoom-stage {
-  backface-visibility: hidden;
   box-sizing: border-box;
   cursor: zoom-in;
   height: min(64vh, 580px);
@@ -196,7 +165,6 @@ button {
   overscroll-behavior: contain;
   position: relative;
   touch-action: none;
-  transform-origin: top left;
   user-select: none;
 }
 
